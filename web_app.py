@@ -15,55 +15,15 @@
 """
 
 import os
-import sys
-_is_android = hasattr(sys, 'getandroidapilevel')
-import shutil
 import threading
 import time
-import webbrowser
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
-
-def get_base_dir():
-    """获取应用基础目录（兼容 PyInstaller 打包）"""
-    if getattr(sys, 'frozen', False):
-        return Path(sys.executable).parent
-    return Path(__file__).parent.resolve()
-
-
-def get_user_data_dir():
-    """获取用户数据目录（%LOCALAPPDATA%\幻城签到\），自动创建"""
-    local_appdata = os.environ.get('LOCALAPPDATA', '')
-    if not local_appdata:
-        local_appdata = os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
-    user_dir = Path(local_appdata) / '幻城签到'
-    user_dir.mkdir(parents=True, exist_ok=True)
-    return user_dir
-
-
 import hcnsec_auto_checkin as core
 
-# 将 core 模块的配置文件路径重定向到用户数据目录
-core.CONFIG_FILE = get_user_data_dir() / "accounts.json"
-core.LOG_FILE = get_user_data_dir() / "checkin_log.txt"
-
-# 初始化 accounts.json：用户数据目录不存在时，从应用目录复制初始模板
-if not core.CONFIG_FILE.exists():
-    template = get_base_dir() / "accounts.json"
-    if template.exists():
-        shutil.copy2(template, core.CONFIG_FILE)
-
-# Flask static_folder 适配打包路径（PyInstaller / Android）
-if _is_android:
-    static_dir = Path(__file__).parent / 'static'
-elif getattr(sys, 'frozen', False):
-    static_dir = Path(sys._MEIPASS) / 'static'
-else:
-    static_dir = Path(__file__).parent / 'static'
-app = Flask(__name__, static_folder=str(static_dir), static_url_path="/static")
+app = Flask(__name__, static_folder="static", static_url_path="")
 
 
 # ============================================================
@@ -367,27 +327,21 @@ def api_summary():
     })
 
 
-def start_server():
-    """供 Chaquopy/Android 调用的启动入口"""
-    import threading as _threading
-    import time as _time
-    import webbrowser as _wb
-    _threading.Thread(target=_refresh_status_background, daemon=True).start()
+if __name__ == "__main__":
+    # 启动时预热状态缓存
+    threading.Thread(target=_refresh_status_background, daemon=True).start()
+
+    print("=" * 52)
+    print("  幻城网安签到 · Web 控制台已启动")
+    print("  访问地址: http://127.0.0.1:5000")
+    print("  按 Ctrl+C 停止服务")
+    print("=" * 52)
+
     port = int(os.environ.get("PORT", "5000"))
-    if not _is_android:
-        url = f"http://127.0.0.1:{port}"
-        _threading.Thread(target=lambda: (_time.sleep(1.5), _wb.open(url)), daemon=True).start()
-        print("=" * 52)
-        print("  幻城网安签到 · Web 控制台已启动")
-        print("  访问地址: http://127.0.0.1:5000")
-        print("=" * 52)
-    host = "127.0.0.1"
+
     try:
         from waitress import serve
-        serve(app, host=host, port=port)
+        serve(app, host="127.0.0.1", port=port)
     except ImportError:
-        app.run(host=host, port=port, debug=False)
-
-
-if __name__ == "__main__":
-    start_server()
+        print("waitress 未安装，回退到 Flask 开发服务器...")
+        app.run(host="127.0.0.1", port=port, debug=False)

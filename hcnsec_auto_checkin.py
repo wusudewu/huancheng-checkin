@@ -56,29 +56,10 @@ DO_CHECKIN_API = f"{BASE_URL}/api/user/checkin"
 LOGOUT_API = f"{BASE_URL}/api/user/auth/logout"
 SELF_INFO_API = f"{BASE_URL}/api/user/self"
 
-def get_base_dir():
-    """获取应用基础目录（兼容 PyInstaller 打包）"""
-    if getattr(sys, 'frozen', False):
-        return Path(sys.executable).parent
-    return Path(__file__).parent.resolve()
-
-
-def get_user_data_dir():
-    """获取用户数据目录（Windows: %LOCALAPPDATA%\幻城签到\ | Android: app私有目录），自动创建"""
-    if hasattr(sys, 'getandroidapilevel'):
-        from java import jclass
-        context = jclass('com.chaquo.python.Python').getPlatform().getApplication()
-        base = context.getFilesDir().getAbsolutePath()
-    else:
-        base = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
-    data_dir = os.path.join(base, '幻城签到')
-    os.makedirs(data_dir, exist_ok=True)
-    return data_dir
-
-
-# 配置文件路径（用户数据目录，避免打包后 Program Files 等受限位置写入失败）
-CONFIG_FILE = get_user_data_dir() / "accounts.json"
-LOG_FILE = get_user_data_dir() / "checkin_log.txt"
+# 脚本所在目录
+SCRIPT_DIR = Path(__file__).parent.resolve()
+CONFIG_FILE = SCRIPT_DIR / "accounts.json"
+LOG_FILE = SCRIPT_DIR / "checkin_log.txt"
 
 # 请求超时（秒）
 REQUEST_TIMEOUT = 30
